@@ -16,7 +16,7 @@ class CompleteCapsNet(object):
         self.channels = channels
         self.num_label = num_label
 
-    def create_network(self, inputs, labels):
+    def create_network(self, inputs, labels, **kwargs):
         """ Setup capsule network.
         Args:
             inputs: Tensor or array with shape [batch_size, height, width, channels] or [batch_size, height * width * channels].
@@ -25,6 +25,13 @@ class CompleteCapsNet(object):
             poses: Tensor with shape [batch_size, num_label, 16, 1].
             probs: Tensor with shape [batch_size, num_label], the probability of entity presence.
         """
+        m_plus = kwargs.get('m_plus', 0.9)
+        m_minus = kwargs.get('m_minus', 0.1)
+        m_scheduler = kwargs.get('m_scheduler', 1)
+        lambda_val = kwargs.get('lambda_val', 0.5)
+        summary_verbose = kwargs.get('summary_verbose', True)
+        regularization_scale = kwargs.get('regularization_scale', 0.392)
+
         self.raw_imgs = inputs
         self.labels = labels
         probs = []
@@ -93,15 +100,15 @@ class CompleteCapsNet(object):
                                               units=num_outputs,
                                               activation=tf.sigmoid)
             recon_imgs = tf.reshape(self.recon_imgs, shape=[-1, self.height, self.width, self.channels])
-            cl.summary.image('reconstruction_img', recon_imgs, verbose=cfg.summary_verbose)
+            cl.summary.image('reconstruction_img', recon_imgs, verbose=summary_verbose)
 
         with tf.variable_scope('accuracy'):
-            cl.summary.histogram('activation', tf.nn.softmax(self.probs, 1), verbose=cfg.summary_verbose)
+            cl.summary.histogram('activation', tf.nn.softmax(self.probs, 1), verbose=summary_verbose)
             logits_idx = tf.to_int32(tf.argmax(cl.softmax(self.probs, axis=1), axis=1))
             correct_prediction = tf.equal(tf.to_int32(self.labels), logits_idx)
             correct = tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
             self.accuracy = tf.reduce_mean(correct / tf.cast(tf.shape(self.probs)[0], tf.float32))
-            cl.summary.scalar('accuracy', self.accuracy, verbose=cfg.summary_verbose)
+            cl.summary.scalar('accuracy', self.accuracy, verbose=summary_verbose)
 
         return self.poses, self.probs
 
@@ -111,7 +118,7 @@ class CompleteCapsNet(object):
             orgin = tf.reshape(self.raw_imgs, shape=(-1, self.height * self.width * self.channels))
             squared = tf.square(self.recon_imgs - orgin)
             reconstruction_err = tf.reduce_mean(squared)
-            cl.summary.scalar('reconstruction_loss', reconstruction_err, verbose=cfg.summary_verbose)
+            cl.summary.scalar('reconstruction_loss', reconstruction_err, verbose=summary_verbose)
 
             # Spread loss
             initial_margin = 0.2
@@ -119,15 +126,15 @@ class CompleteCapsNet(object):
             interstep = 8000
             margin = (self.global_step / interstep) * 0.1 + initial_margin
             margin = tf.cast(tf.minimum(margin, max_margin), tf.float32)
-            cl.summary.scalar('margin', tf.reduce_mean(margin), verbose=cfg.summary_verbose)
+            cl.summary.scalar('margin', tf.reduce_mean(margin), verbose=summary_verbose)
             spread_loss = cl.losses.spread_loss(logits=self.probs,
                                                 labels=tf.squeeze(self.labels_one_hoted, axis=(2, 3)),
                                                 margin=margin)
-            cl.summary.scalar('spread_loss', spread_loss, verbose=cfg.summary_verbose)
+            cl.summary.scalar('spread_loss', spread_loss, verbose=summary_verbose)
 
             # Total loss
-            total_loss = spread_loss + cfg.regularization_scale * reconstruction_err
-            cl.summary.scalar('total_loss', total_loss, verbose=cfg.summary_verbose)
+            total_loss = spread_loss + regularization_scale * reconstruction_err
+            cl.summary.scalar('total_loss', total_loss, verbose=summary_verbose)
             return total_loss
 
     def train(self, optimizer, num_gpus=1):
