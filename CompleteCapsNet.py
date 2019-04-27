@@ -112,7 +112,14 @@ class CompleteCapsNet(object):
 
         return self.poses, self.probs
 
-    def _loss(self):
+    def _loss(self, **kwargs):
+        m_plus = kwargs.get('m_plus', 0.9)
+        m_minus = kwargs.get('m_minus', 0.1)
+        m_scheduler = kwargs.get('m_scheduler', 1)
+        lambda_val = kwargs.get('lambda_val', 0.5)
+        summary_verbose = kwargs.get('summary_verbose', True)
+        regularization_scale = kwargs.get('regularization_scale', 0.392)
+
         with tf.variable_scope("loss"):
             # The reconstruction loss
             orgin = tf.reshape(self.raw_imgs, shape=(-1, self.height * self.width * self.channels))
