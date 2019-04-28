@@ -50,12 +50,13 @@ class AutoEncoder(object):
             fc3 = tf.keras.layers.Dense(256, activation='relu', name='fc3')(fc2)
             fc3 = tf.keras.layers.Dropout(0.2)(fc3)
 
-            deconv_input = tf.keras.layers.Reshape((self.height//4,self.width//4,16))(fc3)
+            deconv_input = tf.reshape(fc3, shape=[-1, 4, 4, 16])
             deconv1 = tf.keras.layers.Conv2DTranspose(filters=16, kernel_size=(3,3), activation='relu', padding='same', strides=(2,2), name='deconv1')(deconv_input)
             deconv2 = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(3,3), activation='relu', padding='same', strides=(2,2), name='deconv2')(deconv1)
-            self.recon = tf.keras.layers.Conv2D(1, kernel_size=(3, 3),
-                                        padding='same',
-                                         name='output')(deconv2) 
+            flat2 = tf.keras.layers.Flatten(deconv2)
+            num_outputs = self.height * self.width * self.channels
+            recon = tf.keras.layers.Dense(num_outputs, activation=tf.sigmoid)(flat2)
+            self.recon = tf.reshape(recon, shape=[-1, self.height, self.width, self.channels], name='reconstruction') 
     
     def train(self, *args, **kwargs):
         self._build_loss()
