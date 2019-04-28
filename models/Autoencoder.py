@@ -73,6 +73,7 @@ class AutoEncoder(object):
             
             self.loss = reg*reconstruction_loss + classification_loss
             tf.summary.scalar("loss", self.loss)
+            tf.summary.scalar("accuracy", self.accuracy)
     
     def _setup_train(self):
         optimizer = tf.train.RMSPropOptimizer(0.001)
