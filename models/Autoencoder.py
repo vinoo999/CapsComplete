@@ -14,13 +14,13 @@ class AutoEncoder(object):
 
     def create_network(self, inputs, labels):
         self.image_input = inputs
-        self.is_train = tf.placeholder(dtype=tf.bool, shape=(), name="is_train")
         self.labels = labels
 
         with tf.variable_scope("Encoder"):
+            inputs = tf.reshape(self.image_input, shape=[-1, self.height, self.width, self.channels])
             conv1 = tf.keras.layers.Conv2D(32, kernel_size=(3, 3),
                                         padding='same',
-                                        activation='relu', name='conv1')(self.image_input)                    
+                                        activation='relu', name='conv1')(inputs)                    
             pool1 = tf.keras.layers.MaxPooling2D(padding='same', 
                                                  pool_size=(2,2),
                                                  name='pool1')(conv1)
@@ -64,10 +64,12 @@ class AutoEncoder(object):
     
     def _build_loss(self, reg=0.392):
         with tf.variable_scope("loss"):
-            reconstruction_loss = tf.nn.l2_loss(self.recon - self.image_input, name='reconstruction_loss')
+            originals = tf.reshape(self.image_input, shape=[-1, self.height, self.width, self.channels])
+            reconstruction_loss = tf.nn.l2_loss(self.recon - originals, name='reconstruction_loss')
             one_hot = tf.one_hot(self.labels, depth=self.num_label)
             classification_loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(one_hot, self.classification_layer))
             self.accuracy = tf.metrics.accuracy(labels=self.labels, predictions=tf.argmax(self.classification_layer))
+            
             self.loss = reg*reconstruction_loss + classification_loss
     
     def _setup_train(self):
