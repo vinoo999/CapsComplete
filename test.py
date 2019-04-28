@@ -149,7 +149,7 @@ def evaluate(model, data_loader, batch_size=4, n_gpus=1, train_sum_every=200,
     config.gpu_options.allow_growth = True
     with tf.Session(config=config) as sess:
         test_handle = sess.run(test_iterator.string_handle())
-        saver.restore(sess, tf.train.latest_checkpoint(logdir))
+        saver.restore(sess, tf.train.latest_checkpoint(log_dir))
         tf.logging.info('Model restored!')
 
         probs = []
