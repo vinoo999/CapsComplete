@@ -43,8 +43,7 @@ class AutoEncoder(object):
                                         activation='relu',name='fc2')(fc1)
             fc2 = tf.keras.layers.Dropout(0.2)(fc2)
 
-        # Output layers: separate outputs for the weather and the ground labels
-        self.probs = tf.keras.layers.Dense(self.num_label, activation='softmax', name='classification_layer')(fc2)
+        self.probs = tf.keras.layers.Dense(self.num_label, name='classification_layer')(fc2)
 
         with tf.variable_scope("decoder"):
             fc3 = tf.keras.layers.Dense(256, activation='relu', name='fc3')(fc2)
@@ -57,6 +56,13 @@ class AutoEncoder(object):
             num_outputs = self.height * self.width * self.channels
             recon = tf.keras.layers.Dense(num_outputs, activation=tf.sigmoid)(flat2)
             self.recon = tf.reshape(recon, shape=[-1, self.height, self.width, self.channels], name='reconstruction') 
+        
+        with tf.variable_scope('accuracy'):
+            logits_idx = tf.to_int32(tf.argmax(tf.nn.softmax(self.probs, axis=1), axis=1))
+            correct_prediction = tf.equal(tf.to_int32(self.labels), logits_idx)
+            correct = tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
+            self.accuracy = tf.reduce_mean(correct / tf.cast(tf.shape(self.probs)[0], tf.float32))
+            tf.summary.scalar('accuracy', self.accuracy)
     
     def train(self, *args, **kwargs):
         self._build_loss()
@@ -69,11 +75,9 @@ class AutoEncoder(object):
             reconstruction_loss = tf.nn.l2_loss(self.recon - originals, name='reconstruction_loss')
             one_hot = tf.one_hot(self.labels, depth=self.num_label)
             classification_loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(one_hot, self.probs))
-            self.accuracy = tf.metrics.accuracy(labels=self.labels, predictions=tf.argmax(self.probs))
             
             self.loss = reg*reconstruction_loss + classification_loss
             tf.summary.scalar("loss", self.loss)
-            tf.summary.scalar("accuracy", self.accuracy)
     
     def _setup_train(self):
         optimizer = tf.train.RMSPropOptimizer(0.001)
