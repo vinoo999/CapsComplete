@@ -60,7 +60,7 @@ class AutoEncoder(object):
     def train(self, *args, **kwargs):
         self._build_loss()
         self._setup_train()
-        return (self.loss, self.train_ops, self.sumary_ops)
+        return (self.loss, self.train_ops, self.summary_ops)
     
     def _build_loss(self, reg=0.392):
         with tf.variable_scope("loss"):
