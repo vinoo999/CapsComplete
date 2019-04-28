@@ -7,7 +7,7 @@ from capslayer.plotlib import plot_activation
 import tensorflow as tf
 import numpy as np
 import capslayer as cl
-from data.data_download import start_download
+from .data.data_download import start_download
 
 def save_to(is_training, results_dir='./results/logs'):
     os.makedirs(os.path.join(results_dir, "activations"), exist_ok=True)
