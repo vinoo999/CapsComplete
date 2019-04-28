@@ -44,7 +44,7 @@ class AutoEncoder(object):
             fc2 = tf.keras.layers.Dropout(0.2)(fc2)
 
         # Output layers: separate outputs for the weather and the ground labels
-        self.classification_layer = tf.keras.layers.Dense(self.num_label, name='classification_layer')(fc2)
+        self.probs = tf.keras.layers.Dense(self.num_label, activation='softmax', name='classification_layer')(fc2)
 
         with tf.variable_scope("decoder"):
             fc3 = tf.keras.layers.Dense(256, activation='relu', name='fc3')(fc2)
@@ -68,10 +68,11 @@ class AutoEncoder(object):
             originals = tf.reshape(self.image_input, shape=[-1, self.height, self.width, self.channels])
             reconstruction_loss = tf.nn.l2_loss(self.recon - originals, name='reconstruction_loss')
             one_hot = tf.one_hot(self.labels, depth=self.num_label)
-            classification_loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(one_hot, self.classification_layer))
-            self.accuracy = tf.metrics.accuracy(labels=self.labels, predictions=tf.argmax(self.classification_layer))
+            classification_loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(one_hot, self.probs))
+            self.accuracy = tf.metrics.accuracy(labels=self.labels, predictions=tf.argmax(self.probs))
             
             self.loss = reg*reconstruction_loss + classification_loss
+            tf.summary.scalar("loss", self.loss)
     
     def _setup_train(self):
         optimizer = tf.train.RMSPropOptimizer(0.001)

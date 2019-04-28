@@ -126,10 +126,10 @@ def train(model, data_loader, batch_size=4, n_gpus=1, train_sum_every=200,
                            save_path=os.path.join(logdir, 'model.ckpt'),
                            global_step=step)
 
-            duration = time.time() - start_time
-            log_str = ' step: {:d}, loss: {:.3f}, time: {:.3f} sec/step' \
-                      .format(step, loss_val, duration)
-            print(log_str)
+                duration = time.time() - start_time
+                log_str = ' step: {:d}, loss: {:.3f}, time: {:.3f} sec/step' \
+                        .format(step, loss_val, duration)
+                print(log_str)
 
 def evaluate(model, data_loader, batch_size=4, n_gpus=1, train_sum_every=200,
           num_steps=50000, val_sum_every=500, save_ckpt_every=1000, 
