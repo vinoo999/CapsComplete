@@ -127,7 +127,7 @@ class CompleteCapsNet(object):
             # regularization scale should be 0.0005*784=0.392
             self.total_loss = self.classification_loss + regularization_scale * self.reconstruction_err
 
-            cl.summary.scalar('total_loss', total_loss, verbose=summary_verbose)
+            cl.summary.scalar('total_loss', self.total_loss, verbose=summary_verbose)
             return self.total_loss
 
     def train(self, optimizer, num_gpus=1):
