@@ -197,27 +197,30 @@ def train(model, num_label,
           num_samples=-1):
     
     trX, trY, num_tr_batch, valX, valY, num_val_batch = load_data(dataset, batch_size, is_training=True, quantity=num_samples)
-    Y = valY[:num_val_batch * batch_size].reshape((-1, 1))
+    # Y = valY[:num_val_batch * batch_size].reshape((-1, 1))
 
     fd_train_acc, fd_loss, fd_val_acc = save_to(results_dir, True)
     
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
-    
     with tf.Session(config=config, graph=model.graph) as sess:
-        sess.run(tf.global_variables_initializer())
+        with tf.Session() as temp_sess:
+            temp_sess.run(tf.global_variables_initializer())
+        sess.run(tf.variables_initializer(model.graph.get_collection('variables')))
         saver = tf.train.Saver()
         summary_writer = tf.summary.FileWriter(log_dir, sess.graph)
         print("\nNote: all of results will be saved to directory: " + results_dir)
+
+        batch_num = 0
         for epoch in range(n_epochs):
             print("Training for epoch %d/%d:" % (epoch, n_epochs))
             for step in tqdm(range(num_tr_batch), total=num_tr_batch, ncols=70, leave=False, unit='b'):
                 start = step * batch_size
                 end = start + batch_size
                 global_step = epoch * num_tr_batch + step
-
+                X_batch, Y_batch, batch_num = get_batch(trX, trY, batch_size, batch_num)
                 if global_step % train_sum_freq == 0:
-                    _, loss, train_acc, summary_str = sess.run([model.train_op, model.total_loss, model.accuracy, model.train_summary])
+                    _, loss, train_acc, summary_str = sess.run([model.train_op, model.total_loss, model.accuracy, model.train_summary], feed_dict={model.X: X_batch, model.labels: Y_batch})
                     assert not np.isnan(loss), 'Something wrong! loss is nan...'
                     summary_writer.add_summary(summary_str, global_step)
 
@@ -226,7 +229,7 @@ def train(model, num_label,
                     fd_train_acc.write(str(global_step) + ',' + str(train_acc / batch_size) + "\n")
                     fd_train_acc.flush()
                 else:
-                    sess.run(model.train_op)
+                    sess.run(model.train_op, feed_dict={model.X: X_batch, model.labels: Y_batch})
 
                 if val_sum_freq != 0 and (global_step) % val_sum_freq == 0:
                     val_acc = 0
@@ -238,7 +241,6 @@ def train(model, num_label,
                     val_acc = val_acc / (batch_size * num_val_batch)
                     fd_val_acc.write(str(global_step) + ',' + str(val_acc) + '\n')
                     fd_val_acc.flush()
-            print("SAVE FREQUENCY: {} EPOCH: {}".format(save_freq, epoch))
             if (epoch + 1) % save_freq == 0:
                 tf.logging.info('Model Saving')
                 saver.save(sess, os.path.join(log_dir, '/model_epoch_{}'.format(str(epoch))))
@@ -269,3 +271,23 @@ def evaluation(model, num_label, dataset='mnist',
         fd_test_acc.write(str(test_acc))
         fd_test_acc.close()
         print('Test accuracy has been saved to ' + results_dir + '/test_acc.csv')
+
+def get_batch(X, Y, batch_size, batch_num):
+    """
+    Return minibatch of samples and labels
+    :param X, y: samples and corresponding labels
+    :parma batch_size: minibatch size
+    :returns: X_batch
+    """
+    new_start = batch_size * batch_num
+    if new_start >= X.shape[0]:
+        new_start = 0
+        batch_num = 0
+    new_end = new_start + batch_size
+    batch_num += 1
+    if new_end >= X.shape[0]:
+        new_end = X.shape[0]
+        batch_num = 0
+    X_batch = X[np.arange(new_start, new_end), ...]
+    Y_batch = Y[np.arange(new_start, new_end)]
+    return X_batch, Y_batch, batch_num

@@ -30,7 +30,7 @@ class MyCapsNet(object):
         self.mask_with_y = is_training
         dataset = kwargs.get('dataset', 'mnist')
         num_threads = kwargs.get('num_threads', 8)
-        batch_size = kwargs.get('batch_size', 128)
+        # batch_size = kwargs.get('batch_size', 128)
         
         # Loss Parameters
         self.m_plus = kwargs.get('m_plus', 0.9)
@@ -42,7 +42,10 @@ class MyCapsNet(object):
 
         with self.graph.as_default():
             if is_training:
-                self.X, self.labels = get_batch_data(dataset, batch_size, num_threads)
+                self.X = tf.placeholder(tf.float32, shape=(None, self.height, self.width, self.channels))
+                self.labels = tf.placeholder(tf.int32, shape=(None,))
+                print("labels", self.labels.get_shape())
+                # self.labels = get_batch_data(dataset, batch_size, num_threads)
                 self.Y = tf.one_hot(self.labels, depth=self.num_label, axis=1, dtype=tf.float32)
 
                 self.build_arch()
@@ -108,7 +111,8 @@ class MyCapsNet(object):
                 # assert self.masked_v.get_shape() == [self.batch_size, 1, 16, 1]
             # Method 2. masking with true label, default mode
             else:
-                self.masked_v = reduce_sum(tf.multiply(tf.squeeze(self.digit_caps), tf.reshape(self.Y, (-1, self.num_label, 1))), axis=1, keepdims=True)
+                self.masked_v = tf.gather(self.digit_caps, self.labels, axis=1)[:,0,:,:]
+                # reduce_sum(tf.multiply(tf.squeeze(self.digit_caps, axis=3), tf.reshape(self.Y, (-1, self.num_label, 1))), axis=1, keepdims=True)
                 print(self.digit_caps.get_shape())
                 print(self.masked_v.get_shape())
                 self.v_length = tf.sqrt(reduce_sum(tf.square(self.digit_caps), axis=2, keepdims=True) + epsilon)
@@ -116,8 +120,7 @@ class MyCapsNet(object):
         # 2. Reconstructe the MNIST images with 3 FC layers
         # [batch_size, 1, 16, 1] => [batch_size, 16] => [batch_size, 512]
         with tf.variable_scope('Decoder'):
-            print(self.masked_v.get_shape())
-            vector_j = tf.squeeze(self.masked_v)
+            vector_j = self.masked_v[:,:,0]
             fc1 = tf.keras.layers.Dense(512, activation='relu')(vector_j)
             fc2 = tf.keras.layers.Dense(1024, activation='relu')(fc1)
             self.decoded = tf.keras.layers.Dense(self.height * self.width * self.channels,

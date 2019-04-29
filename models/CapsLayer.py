@@ -21,17 +21,16 @@ class PrimaryCaps(object):
         self.vec_len = vec_len
         self.kernel_size = kernel_size
         self.stride = stride 
-
         self.conv_out = tf.keras.layers.Conv2D(self.num_outputs*self.vec_len,
                                           self.kernel_size,
                                           strides=self.stride,
-                                          padding="same",
+                                          padding="valid",
                                           name='primary_caps_conv')
         
     def __call__(self, inputs):
         capsules_not_flat = self.conv_out(inputs)
         # fix this
-        dim = tf.reduce_prod(tf.shape(capsules_not_flat)[1:])
+        dim = tf.reduce_prod(capsules_not_flat.get_shape()[1:])
         dim = tf.div(dim, self.vec_len)
         capsules = tf.reshape(capsules_not_flat, [-1, dim, self.vec_len, 1])
         self.poses = squash(capsules)
@@ -48,13 +47,16 @@ class ClassCaps(object):
     
     def __call__(self, inputs):
         in_vec_len = inputs.get_shape().as_list()[-2]
-        dim = tf.reduce_prod(tf.shape(inputs)[1:])
+        dim = tf.reduce_prod(inputs.get_shape()[1:])
         dim = tf.div(dim, in_vec_len)
         self.input = tf.reshape(inputs, shape=(-1, dim, 1, in_vec_len, 1))
 
         with tf.variable_scope('routing'):
             # b_IJ: [batch_size, num_caps_l, num_caps_l_plus_1, 1, 1],
-            b_IJ = tf.zeros([tf.shape(self.input)[0], dim, self.num_outputs, 1, 1], dtype=tf.dtypes.float32)
+            print(self.input.get_shape())
+            zeros_dims = tf.stack([tf.shape(self.input)[0], dim, self.num_outputs, 1, 1])
+            b_IJ = tf.fill(zeros_dims, 0.0)
+            # tf.zeros([self.input.get_shape()[0], dim, self.num_outputs, 1, 1], dtype=tf.dtypes.float32)
             capsules = routing(self.input, b_IJ, num_outputs=self.num_outputs, num_dims=self.vec_len)
             self.poses = tf.squeeze(capsules, axis=1)
             self.activations = tf.sqrt(reduce_sum(tf.square(self.poses),
@@ -117,7 +119,7 @@ class CapsLayer(object):
                 # the DigitCaps layer, a fully connected layer
                 # Reshape the input into [batch_size, 1152, 1, 8, 1]
                 self.input = tf.reshape(input, shape=(self.batch_size, -1, 1, input.shape[-2].value, 1))
-
+                print(self.input.get_shape())
                 with tf.variable_scope('routing'):
                     # b_IJ: [batch_size, num_caps_l, num_caps_l_plus_1, 1, 1],
                     # about the reason of using 'batch_size', see issue #21
