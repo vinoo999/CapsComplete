@@ -226,6 +226,7 @@ def train(model, supervisor, num_label,
                     fd_val_acc.flush()
 
             if (epoch + 1) % save_freq == 0:
+                tf.logging.info('Model Saving')
                 supervisor.saver.save(sess, os.path.join(log_dir, '/model_epoch_{:04d}_step_{:02d}'.format(epoch, global_step)))
 
         fd_val_acc.close()
