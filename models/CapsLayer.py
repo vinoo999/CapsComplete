@@ -47,7 +47,7 @@ class ClassCaps(object):
                                                activation=None)
     
     def __call__(self, inputs):
-        in_vec_len = tf.shape(inputs)[-2]
+        in_vec_len = inputs.get_shape().as_list()[-2]
         dim = tf.reduce_prod(tf.shape(inputs)[1:])
         dim = tf.div(dim, in_vec_len)
         self.input = tf.reshape(inputs, shape=(-1, dim, 1, in_vec_len, 1))
