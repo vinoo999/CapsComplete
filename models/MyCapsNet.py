@@ -64,7 +64,7 @@ class MyCapsNet(object):
             # Conv1, return tensor with shape [batch_size, 20, 20, 256]
             conv1 = tf.keras.layers.Conv2D(256,
                                            kernel_size=9, 
-                                           stride=1,
+                                           strides=1,
                                            padding='valid')(self.X)
 
         # Primary Capsules layer, return tensor with shape [batch_size, 1152, 8, 1]

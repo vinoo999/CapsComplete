@@ -21,7 +21,7 @@ class PrimaryCaps(object):
 
         self.conv_out = tf.keras.layers.Conv2D(self.num_outputs*self.vec_len,
                                           self.kernel_size,
-                                          self.stride,
+                                          strides=self.stride,
                                           padding="same",
                                           name='primary_caps_conv')
         
