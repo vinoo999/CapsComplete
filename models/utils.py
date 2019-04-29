@@ -224,7 +224,7 @@ def train(model, supervisor, num_label,
                     val_acc = val_acc / (batch_size * num_val_batch)
                     fd_val_acc.write(str(global_step) + ',' + str(val_acc) + '\n')
                     fd_val_acc.flush()
-
+            print("SAVE FREQUENCY: {} EPOCH: {}".format(save_freq, epoch))
             if (epoch + 1) % save_freq == 0:
                 tf.logging.info('Model Saving')
                 supervisor.saver.save(sess, os.path.join(log_dir, '/model_epoch_{:04d}_step_{:02d}'.format(epoch, global_step)))
