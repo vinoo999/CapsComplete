@@ -13,12 +13,14 @@ def load_mnist(batch_size, is_training=True, quantity=-1):
             size = 60000
         else:
             size = min(60000, abs(quantity))
-        val_boundary = int(0.9*size)
-        trainX = loaded[16:16+size].reshape((size, 28, 28, 1)).astype(np.float32)
+        origX = loaded[16:].reshape((60000, 28, 28, 1)).astype(np.float32)
+        trainX = origX[:size,:,:,:]
         fd = open(os.path.join(path, 'train-labels-idx1-ubyte'))
         loaded = np.fromfile(file=fd, dtype=np.uint8)
-        trainY = loaded[8:].reshape((60000)).astype(np.int32)
-
+        origY = loaded[8:].reshape((60000)).astype(np.int32)
+        trainY = origY[:size]
+        
+        val_boundary = int(0.9*size)
         trX = trainX[:val_boundary] / 255.
         trY = trainY[:val_boundary]
 
@@ -33,10 +35,16 @@ def load_mnist(batch_size, is_training=True, quantity=-1):
         fd = open(os.path.join(path, 't10k-images-idx3-ubyte'))
         loaded = np.fromfile(file=fd, dtype=np.uint8)
         teX = loaded[16:].reshape((10000, 28, 28, 1)).astype(np.float)
+        if quantity == -1:
+            size = 10000
+        else:
+            size = min(10000, abs(quantity))
+        teX = teX[:size,:,:,:]
 
         fd = open(os.path.join(path, 't10k-labels-idx1-ubyte'))
         loaded = np.fromfile(file=fd, dtype=np.uint8)
         teY = loaded[8:].reshape((10000)).astype(np.int32)
+        teY = teY[:size]
 
         num_te_batch = 10000 // batch_size
         return teX / 255., teY, num_te_batch
