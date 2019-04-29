@@ -243,7 +243,7 @@ def train(model, num_label,
                     fd_val_acc.flush()
             if (epoch + 1) % save_freq == 0:
                 tf.logging.info('Model Saving')
-                saver.save(sess, os.path.join(log_dir, '/model_epoch_{}'.format(str(epoch))))
+                saver.save(sess, log_dir + 'epoch_' + str(epoch))
 
         fd_val_acc.close()
         fd_train_acc.close()
