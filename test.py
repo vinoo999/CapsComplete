@@ -127,8 +127,8 @@ def train(model, data_loader, batch_size=4, n_gpus=1, train_sum_every=200,
                            global_step=step)
 
                 duration = time.time() - start_time
-                log_str = ' step: {:d}, loss: {:.3f}, time: {:.3f} sec/step' \
-                        .format(step, loss_val, duration)
+                log_str = ' step: {:d}, loss: {:.3f}, train acc {:.3f}, val accuracy: {:.3f}, time: {:.3f} sec/step' \
+                        .format(step, loss_val, train_acc, avg_acc, duration)
                 print(log_str)
 
 def evaluate(model, data_loader, batch_size=4, n_gpus=1, train_sum_every=200,
