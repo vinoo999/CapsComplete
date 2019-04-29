@@ -56,9 +56,9 @@ class MyCapsNet(object):
                 self.optimizer = tf.train.AdamOptimizer()
                 self.train_op = self.optimizer.minimize(self.total_loss, global_step=self.global_step)
             else:
-                self.X = tf.placeholder(tf.float32, shape=(batch_size, self.height, self.width, self.channels))
-                self.labels = tf.placeholder(tf.int32, shape=(batch_size, ))
-                self.Y = tf.reshape(self.labels, shape=(batch_size, self.num_label, 1))
+                self.X = tf.placeholder(tf.float32, shape=(None, self.height, self.width, self.channels))
+                self.labels = tf.placeholder(tf.int32, shape=(None, ))
+                self.Y = tf.reshape(self.labels, shape=(None, self.num_label, 1))
                 self.build_arch()
 
         tf.logging.info('Seting up the main structure')
@@ -100,19 +100,10 @@ class MyCapsNet(object):
             # Method 1.
             if not self.mask_with_y:
                 # c). indexing
-                # It's not easy to understand the indexing process with argmax_idx
-                # as we are 3-dim animal
-                masked_v = []
-                for batch_size in range(self.input.get_shape()[0]):
-                    v = self.digit_caps[batch_size][self.argmax_idx[batch_size], :]
-                    masked_v.append(tf.reshape(v, shape=(1, 1, 16, 1)))
-
-                self.masked_v = tf.concat(masked_v, axis=0)
-                # assert self.masked_v.get_shape() == [self.batch_size, 1, 16, 1]
+                self.masked_v = tf.gather(self.digit_caps, self.argmax_idx, axis=1)[:,0,:,:]
             # Method 2. masking with true label, default mode
             else:
                 self.masked_v = tf.gather(self.digit_caps, self.labels, axis=1)[:,0,:,:]
-                # reduce_sum(tf.multiply(tf.squeeze(self.digit_caps, axis=3), tf.reshape(self.Y, (-1, self.num_label, 1))), axis=1, keepdims=True)
                 print(self.digit_caps.get_shape())
                 print(self.masked_v.get_shape())
                 self.v_length = tf.sqrt(reduce_sum(tf.square(self.digit_caps), axis=2, keepdims=True) + epsilon)
