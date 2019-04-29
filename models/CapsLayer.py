@@ -76,11 +76,12 @@ class CapsLayer(object):
         A 4-D tensor.
     '''
     def __init__(self, num_outputs, vec_len, 
-                 with_routing=True, layer_type='FC'):
+                 with_routing=True, layer_type='FC', batch_size=128):
         self.num_outputs = num_outputs
         self.vec_len = vec_len
         self.with_routing = with_routing
         self.layer_type = layer_type
+        self.batch_size=batch_size
 
     def __call__(self, input, kernel_size=None, stride=None):
         '''
@@ -105,7 +106,7 @@ class CapsLayer(object):
                 # capsules = tf.contrib.layers.conv2d(input, self.num_outputs * self.vec_len,
                 #                                    self.kernel_size, self.stride,padding="VALID",
                 #                                    activation_fn=None)
-                capsules = tf.reshape(capsules, (cfg.batch_size, -1, self.vec_len, 1))
+                capsules = tf.reshape(capsules, (self.batch_size, -1, self.vec_len, 1))
 
                 # return tensor with shape [batch_size, 1152, 8, 1]
                 capsules = squash(capsules)
@@ -115,19 +116,19 @@ class CapsLayer(object):
             if self.with_routing:
                 # the DigitCaps layer, a fully connected layer
                 # Reshape the input into [batch_size, 1152, 1, 8, 1]
-                self.input = tf.reshape(input, shape=(cfg.batch_size, -1, 1, input.shape[-2].value, 1))
+                self.input = tf.reshape(input, shape=(self.batch_size, -1, 1, input.shape[-2].value, 1))
 
                 with tf.variable_scope('routing'):
                     # b_IJ: [batch_size, num_caps_l, num_caps_l_plus_1, 1, 1],
                     # about the reason of using 'batch_size', see issue #21
-                    b_IJ = tf.constant(np.zeros([cfg.batch_size, input.shape[1].value, self.num_outputs, 1, 1], dtype=np.float32))
+                    b_IJ = tf.constant(np.zeros([self.batch_size, input.shape[1].value, self.num_outputs, 1, 1], dtype=np.float32))
                     capsules = routing(self.input, b_IJ, num_outputs=self.num_outputs, num_dims=self.vec_len)
                     capsules = tf.squeeze(capsules, axis=1)
 
             return(capsules)
 
 
-def routing(input, b_IJ, num_outputs=10, num_dims=16):
+def routing(input, b_IJ, num_outputs=10, num_dims=16, iter_routing=3):
     ''' The routing algorithm.
     Args:
         input: A Tensor with [batch_size, num_caps_l=1152, 1, length(u_i)=8, 1]
@@ -141,11 +142,11 @@ def routing(input, b_IJ, num_outputs=10, num_dims=16):
         u_i represents the vector output of capsule i in the layer l, and
         v_j the vector output of capsule j in the layer l+1.
      '''
-
+    stddev = 0.01
     # W: [1, num_caps_i, num_caps_j * len_v_j, len_u_j, 1]
     input_shape = get_shape(input)
     W = tf.get_variable('Weight', shape=[1, input_shape[1], num_dims * num_outputs] + input_shape[-2:],
-                        dtype=tf.float32, initializer=tf.random_normal_initializer(stddev=cfg.stddev))
+                        dtype=tf.float32, initializer=tf.random_normal_initializer(stddev=stddev))
     biases = tf.get_variable('bias', shape=(1, 1, num_outputs, num_dims, 1))
 
     # Eq.2, calc u_hat
@@ -165,14 +166,14 @@ def routing(input, b_IJ, num_outputs=10, num_dims=16):
     u_hat_stopped = tf.stop_gradient(u_hat, name='stop_gradient')
 
     # line 3,for r iterations do
-    for r_iter in range(cfg.iter_routing):
+    for r_iter in range(iter_routing):
         with tf.variable_scope('iter_' + str(r_iter)):
             # line 4:
             # => [batch_size, 1152, 10, 1, 1]
             c_IJ = softmax(b_IJ, axis=2)
 
             # At last iteration, use `u_hat` in order to receive gradients from the following graph
-            if r_iter == cfg.iter_routing - 1:
+            if r_iter == iter_routing - 1:
                 # line 5:
                 # weighting u_hat with c_IJ, element-wise in the last two dims
                 # => [batch_size, 1152, 10, 16, 1]
@@ -185,7 +186,7 @@ def routing(input, b_IJ, num_outputs=10, num_dims=16):
                 # squash using Eq.1,
                 v_J = squash(s_J)
                 # assert v_J.get_shape() == [cfg.batch_size, 1, 10, 16, 1]
-            elif r_iter < cfg.iter_routing - 1:  # Inner iterations, do not apply backpropagation
+            elif r_iter < iter_routing - 1:  # Inner iterations, do not apply backpropagation
                 s_J = tf.multiply(c_IJ, u_hat_stopped)
                 s_J = reduce_sum(s_J, axis=1, keepdims=True) + biases
                 v_J = squash(s_J)
