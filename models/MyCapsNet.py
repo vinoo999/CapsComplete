@@ -58,8 +58,9 @@ class MyCapsNet(object):
             else:
                 self.X = tf.placeholder(tf.float32, shape=(None, self.height, self.width, self.channels))
                 self.labels = tf.placeholder(tf.int32, shape=(None, ))
-                self.Y = tf.reshape(self.labels, shape=(None, self.num_label, 1))
                 self.build_arch()
+                correct_prediction = tf.equal(tf.to_int32(self.labels), self.argmax_idx)
+                self.accuracy = tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
 
         tf.logging.info('Seting up the main structure')
 
