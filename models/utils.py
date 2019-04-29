@@ -4,25 +4,29 @@ import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
 
-def load_mnist(batch_size, is_training=True):
+def load_mnist(batch_size, is_training=True, quantity=-1):
     path = os.path.join('data', 'mnist')
     if is_training:
         fd = open(os.path.join(path, 'train-images-idx3-ubyte'))
         loaded = np.fromfile(file=fd, dtype=np.uint8)
-        trainX = loaded[16:].reshape((60000, 28, 28, 1)).astype(np.float32)
-
+        if quantity == -1:
+            size = 60000
+        else:
+            size = min(60000, abs(quantity))
+        val_boundary = int(0.9*size)
+        trainX = loaded[16:16+size].reshape((size, 28, 28, 1)).astype(np.float32)
         fd = open(os.path.join(path, 'train-labels-idx1-ubyte'))
         loaded = np.fromfile(file=fd, dtype=np.uint8)
         trainY = loaded[8:].reshape((60000)).astype(np.int32)
 
-        trX = trainX[:55000] / 255.
-        trY = trainY[:55000]
+        trX = trainX[:val_boundary] / 255.
+        trY = trainY[:val_boundary]
 
-        valX = trainX[55000:, ] / 255.
-        valY = trainY[55000:]
+        valX = trainX[val_boundary:, ] / 255.
+        valY = trainY[val_boundary:]
 
-        num_tr_batch = 55000 // batch_size
-        num_val_batch = 5000 // batch_size
+        num_tr_batch = val_boundary // batch_size
+        num_val_batch = (size-val_boundary) // batch_size
 
         return trX, trY, num_tr_batch, valX, valY, num_val_batch
     else:
@@ -175,7 +179,7 @@ def save_to(results_dir, is_training):
         fd_test_acc.write('test_acc\n')
         return fd_test_acc
 
-def train(model, supervisor, num_label, 
+def train(model, num_label, 
           dataset='mnist', 
           batch_size=128, n_epochs=20,
           results_dir='./results/', log_dir='./logs/',
@@ -190,13 +194,12 @@ def train(model, supervisor, num_label,
     
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
-    with supervisor.managed_session(config=config) as sess:
+    with tf.Session(config=config, graph=model.graph) as sess:
+        saver = tf.train.Saver()
+        summary_writer = tf.summary.FileWriter(log_dir, sess.graph)
         print("\nNote: all of results will be saved to directory: " + results_dir)
         for epoch in range(n_epochs):
             print("Training for epoch %d/%d:" % (epoch, n_epochs))
-            if supervisor.should_stop():
-                print('supervisor stoped!')
-                break
             for step in tqdm(range(num_tr_batch), total=num_tr_batch, ncols=70, leave=False, unit='b'):
                 start = step * batch_size
                 end = start + batch_size
@@ -205,7 +208,7 @@ def train(model, supervisor, num_label,
                 if global_step % train_sum_freq == 0:
                     _, loss, train_acc, summary_str = sess.run([model.train_op, model.total_loss, model.accuracy, model.train_summary])
                     assert not np.isnan(loss), 'Something wrong! loss is nan...'
-                    supervisor.summary_writer.add_summary(summary_str, global_step)
+                    summary_writer.add_summary(summary_str, global_step)
 
                     fd_loss.write(str(global_step) + ',' + str(loss) + "\n")
                     fd_loss.flush()
@@ -227,19 +230,22 @@ def train(model, supervisor, num_label,
             print("SAVE FREQUENCY: {} EPOCH: {}".format(save_freq, epoch))
             if (epoch + 1) % save_freq == 0:
                 tf.logging.info('Model Saving')
-                supervisor.saver.save(sess, os.path.join(log_dir, '/model_epoch_{}'.format(epoch)))
+                saver.save(sess, os.path.join(log_dir, '/model_epoch_{}'.format(str(epoch))))
 
         fd_val_acc.close()
         fd_train_acc.close()
         fd_loss.close()
 
-def evaluation(model, supervisor, num_label, dataset='mnist', 
+def evaluation(model, num_label, dataset='mnist', 
                batch_size=128,
                results_dir='./results/', log_dir='./logs/'):
     teX, teY, num_te_batch = load_data(dataset, batch_size, is_training=False)
     fd_test_acc = save_to(results_dir, False)
-    with supervisor.managed_session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
-        supervisor.saver.restore(sess, tf.train.latest_checkpoint(log_dir))
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    with tf.Session(config=config, graph=model.graph) as sess:
+        saver = tf.train.Saver()
+        saver.restore(sess, tf.train.latest_checkpoint(log_dir))
         tf.logging.info('Model restored!')
 
         test_acc = 0
