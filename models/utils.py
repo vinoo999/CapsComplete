@@ -84,9 +84,9 @@ def load_fashion_mnist(batch_size, is_training=True):
         return teX / 255., teY, num_te_batch
 
 
-def load_data(dataset, batch_size, is_training=True, one_hot=False):
+def load_data(dataset, batch_size, is_training=True, one_hot=False, quantity=-1):
     if dataset == 'mnist':
-        return load_mnist(batch_size, is_training)
+        return load_mnist(batch_size, is_training, quantity=quantity)
     elif dataset == 'fashion-mnist':
         return load_fashion_mnist(batch_size, is_training)
     else:
@@ -193,9 +193,10 @@ def train(model, num_label,
           results_dir='./results/', log_dir='./logs/',
           train_sum_freq=100,
           val_sum_freq=500,
-          save_freq=3):
+          save_freq=3,
+          num_samples=-1):
     
-    trX, trY, num_tr_batch, valX, valY, num_val_batch = load_data(dataset, batch_size, is_training=True)
+    trX, trY, num_tr_batch, valX, valY, num_val_batch = load_data(dataset, batch_size, is_training=True, quantity=num_samples)
     Y = valY[:num_val_batch * batch_size].reshape((-1, 1))
 
     fd_train_acc, fd_loss, fd_val_acc = save_to(results_dir, True)
