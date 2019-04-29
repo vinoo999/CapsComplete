@@ -203,10 +203,9 @@ def train(model, num_label,
     
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
+    
     with tf.Session(config=config, graph=model.graph) as sess:
-        with tf.Session() as temp_sess:
-            temp_sess.run(tf.global_variables_initializer())
-        sess.run(tf.variables_initializer(model.graph.get_collection('variables')))
+        sess.run(tf.global_variables_initializer())
         saver = tf.train.Saver()
         summary_writer = tf.summary.FileWriter(log_dir, sess.graph)
         print("\nNote: all of results will be saved to directory: " + results_dir)
