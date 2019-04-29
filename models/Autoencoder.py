@@ -70,11 +70,11 @@ class AutoEncoder(object):
     
     def _build_loss(self, reg=0.392):
         with tf.variable_scope("loss"):
-            reconstruction_loss = tf.nn.l2_loss(self.recon - self.inputs, name='reconstruction_loss')
+            self.reconstruction_loss = tf.nn.l2_loss(self.recon - self.inputs, name='reconstruction_loss')
             one_hot = tf.one_hot(self.labels, depth=self.num_label)
-            classification_loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(one_hot, self.probs))
+            self.classification_loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(one_hot, self.probs))
             
-            self.loss = reg*reconstruction_loss + classification_loss
+            self.loss = reg*self.reconstruction_loss + self.classification_loss
             tf.summary.scalar("loss", self.loss)
     
     def _setup_train(self):
