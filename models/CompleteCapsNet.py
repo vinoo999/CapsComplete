@@ -44,12 +44,7 @@ class CompleteCapsNet(object):
             poses: [batch_size, num_label, 16, 1].
             probs: Tensor with shape [batch_size, num_label], the probability of entity presence.
         """
-        m_plus = kwargs.get('m_plus', 0.9)
-        m_minus = kwargs.get('m_minus', 0.1)
-        m_scheduler = kwargs.get('m_scheduler', 1)
-        lambda_val = kwargs.get('lambda_val', 0.5)
         summary_verbose = kwargs.get('summary_verbose', True)
-        regularization_scale = kwargs.get('regularization_scale', 0.392)
 
         self.raw_imgs = inputs
         self.labels = labels
@@ -110,10 +105,6 @@ class CompleteCapsNet(object):
         return self.poses, self.probs
 
     def _loss(self, **kwargs):
-        m_plus = kwargs.get('m_plus', 0.9)
-        m_minus = kwargs.get('m_minus', 0.1)
-        m_scheduler = kwargs.get('m_scheduler', 1)
-        lambda_val = kwargs.get('lambda_val', 0.5)
         summary_verbose = kwargs.get('summary_verbose', True)
         regularization_scale = kwargs.get('regularization_scale', 0.392)
 
@@ -121,13 +112,13 @@ class CompleteCapsNet(object):
             # 1. Margin loss
             self.classification_loss = cl.losses.margin_loss(logits=self.probs,
                                                 labels=tf.squeeze(self.labels_one_hoted, axis=(2, 3)))
-            cl.summary.scalar('margin_loss', margin_loss, verbose=summary_verbose)
+            cl.summary.scalar('margin_loss', self.classification_loss, verbose=summary_verbose)
 
             # 2. The reconstruction loss
             orgin = tf.reshape(self.raw_imgs, shape=(-1, self.height * self.width * self.channels))
             squared = tf.square(self.recon_imgs - orgin)
             self.reconstruction_err = tf.reduce_mean(squared)
-            cl.summary.scalar('reconstruction_loss', reconstruction_err, verbose=summary_verbose)
+            cl.summary.scalar('reconstruction_loss', self.reconstruction_err, verbose=summary_verbose)
 
             # 3. Total loss
             # The paper uses sum of squared error as reconstruction error, but we
