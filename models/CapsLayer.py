@@ -6,6 +6,9 @@ Modified by: Vinay Ramesh
 """
 import numpy as np
 import tensorflow as tf
+from utils import reduce_sum
+from utils import softmax
+from utils import get_shape
 
 epsilon = 1e-9
 
