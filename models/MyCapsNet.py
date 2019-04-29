@@ -147,7 +147,8 @@ class MyCapsNet(object):
         self.margin_loss = tf.reduce_mean(tf.reduce_sum(L_c, axis=1))
 
         # 2. The reconstruction loss
-        orgin = tf.reshape(self.X, shape=(-1, -1))
+        dim = tf.reduce_prod(tf.shape(self.X)[1:])
+        orgin = tf.reshape(self.X, shape=(-1, dim))
         squared = tf.square(self.decoded - orgin)
         self.reconstruction_err = tf.reduce_mean(squared)
 
