@@ -54,7 +54,7 @@ class ClassCaps(object):
 
         with tf.variable_scope('routing'):
             # b_IJ: [batch_size, num_caps_l, num_caps_l_plus_1, 1, 1],
-            b_IJ = tf.zeros([-1, dim, self.num_outputs, 1, 1], dtype=tf.dtypes.float32))
+            b_IJ = tf.zeros([-1, dim, self.num_outputs, 1, 1], dtype=tf.dtypes.float32)
             capsules = routing(self.input, b_IJ, num_outputs=self.num_outputs, num_dims=self.vec_len)
             self.poses = tf.squeeze(capsules, axis=1)
             self.activations = tf.sqrt(reduce_sum(tf.square(self.poses),
