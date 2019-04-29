@@ -27,6 +27,7 @@ class MyCapsNet(object):
         self.width = width
         self.channels = channels
         self.num_label = num_label
+        self.mask_with_y = is_training
         dataset = kwargs.get('dataset', 'mnist')
         num_threads = kwargs.get('num_threads', 8)
         batch_size = kwargs.get('batch_size', 128)
@@ -85,7 +86,6 @@ class MyCapsNet(object):
             self.v_length = tf.sqrt(reduce_sum(tf.square(self.digit_caps),
                                                axis=2, keepdims=True) + epsilon)
             self.softmax_v = softmax(self.v_length, axis=1)
-            self.probs = tf.squeeze(self.softmax_v, [2,3])
             # assert self.softmax_v.get_shape() == [cfg.batch_size, self.num_label, 1, 1]
 
             # b). pick out the index of max softmax val of the 10 caps
@@ -94,17 +94,34 @@ class MyCapsNet(object):
             # assert self.argmax_idx.get_shape() == [cfg.batch_size, 1, 1]
             self.argmax_idx = tf.reshape(self.argmax_idx, shape=(-1, ))
 
-            self.masked_v = tf.multiply(tf.squeeze(self.digit_caps), tf.reshape(self.Y, (-1, self.num_label, 1)))
-            self.v_length = tf.sqrt(reduce_sum(tf.square(self.digit_caps), axis=2, keepdims=True) + epsilon)
+            # Method 1.
+            if not self.mask_with_y:
+                # c). indexing
+                # It's not easy to understand the indexing process with argmax_idx
+                # as we are 3-dim animal
+                masked_v = []
+                for batch_size in range(self.input.get_shape()[0]):
+                    v = self.digit_caps[batch_size][self.argmax_idx[batch_size], :]
+                    masked_v.append(tf.reshape(v, shape=(1, 1, 16, 1)))
+
+                self.masked_v = tf.concat(masked_v, axis=0)
+                # assert self.masked_v.get_shape() == [self.batch_size, 1, 16, 1]
+            # Method 2. masking with true label, default mode
+            else:
+                self.masked_v = reduce_sum(tf.multiply(tf.squeeze(self.digit_caps), tf.reshape(self.Y, (-1, self.num_label, 1))), axis=1, keepdims=True)
+                print(self.digit_caps.get_shape())
+                print(self.masked_v.get_shape())
+                self.v_length = tf.sqrt(reduce_sum(tf.square(self.digit_caps), axis=2, keepdims=True) + epsilon)
 
         # 2. Reconstructe the MNIST images with 3 FC layers
         # [batch_size, 1, 16, 1] => [batch_size, 16] => [batch_size, 512]
         with tf.variable_scope('Decoder'):
-            vector_j = tf.squeeze(self.masked_v, [1,3])
+            print(self.masked_v.get_shape())
+            vector_j = tf.squeeze(self.masked_v)
             fc1 = tf.keras.layers.Dense(512, activation='relu')(vector_j)
             fc2 = tf.keras.layers.Dense(1024, activation='relu')(fc1)
             self.decoded = tf.keras.layers.Dense(self.height * self.width * self.channels,
-                                                             activation_fn=tf.sigmoid)(fc2)
+                                                             activation=tf.sigmoid)(fc2)
             self.recons = tf.reshape(self.decoded, (-1, self.height, self.width, self.channels))
 
     def loss(self):
