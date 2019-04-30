@@ -5,8 +5,9 @@ from importlib import import_module
 from capslayer.data.datasets.mnist import DataLoader
 from capslayer.plotlib import plot_activation
 import tensorflow as tf
+import numpy as np
 import capslayer as cl
-from CapsComplete.data_download import start_download
+from .data.data_download import start_download
 
 def save_to(is_training, results_dir='./results/logs'):
     os.makedirs(os.path.join(results_dir, "activations"), exist_ok=True)
@@ -34,7 +35,7 @@ def save_to(is_training, results_dir='./results/logs'):
               "loss": fd_loss,
               "val_acc": fd_val_acc}
     else:
-        test_acc = os.path.jion(results_dir, 'test_acc.csv')
+        test_acc = os.path.join(results_dir, 'test_acc.csv')
         if os.path.exists(test_acc):
             os.remove(test_acc)
         fd_test_acc = open(test_acc, 'w')
@@ -52,7 +53,7 @@ def train(model, data_loader, batch_size=4, n_gpus=1, train_sum_every=200,
     validation_iterator = data_loader(batch_size, mode="eval")
     inputs = data_loader.next_element["images"]
     labels = data_loader.next_element["labels"]
-    print(tf.shape(labels))
+    
     model.create_network(inputs, labels)
 
     loss, train_ops, summary_ops = model.train(n_gpus)
@@ -78,16 +79,11 @@ def train(model, data_loader, batch_size=4, n_gpus=1, train_sum_every=200,
         for step in range(1, num_steps):
             start_time = time.time()
             if step % train_sum_every == 0:
-                _, loss_val, loh, cor, pr, summary_str = sess.run([train_ops,
+                _, loss_val, train_acc, summary_str = sess.run([train_ops,
                                                                loss,
-                                                               model.labels_one_hoted,
-                                                               model.correct,
-                                                               model.probs,
+                                                               model.accuracy,
                                                                summary_ops],
                                                                feed_dict={data_loader.handle: training_handle})
-                print(loh)
-                print(cor)
-                print(pr)
                 tl = timeline.Timeline(run_metadata.step_stats)
                 ctf = tl.generate_chrome_trace_format()
                 out_path = os.path.join(results_dir, "timelines/timeline_%d.json" % step)
@@ -130,10 +126,10 @@ def train(model, data_loader, batch_size=4, n_gpus=1, train_sum_every=200,
                            save_path=os.path.join(logdir, 'model.ckpt'),
                            global_step=step)
 
-            duration = time.time() - start_time
-            log_str = ' step: {:d}, loss: {:.3f}, time: {:.3f} sec/step' \
-                      .format(step, loss_val, duration)
-            print(log_str)
+                duration = time.time() - start_time
+                log_str = ' step: {:d}, loss: {:.3f}, train acc {:.3f}, val accuracy: {:.3f}, time: {:.3f} sec/step' \
+                        .format(step, loss_val, train_acc, avg_acc, duration)
+                print(log_str)
 
 def evaluate(model, data_loader, batch_size=4, n_gpus=1, train_sum_every=200,
           num_steps=50000, val_sum_every=500, save_ckpt_every=1000, 
@@ -153,7 +149,7 @@ def evaluate(model, data_loader, batch_size=4, n_gpus=1, train_sum_every=200,
     config.gpu_options.allow_growth = True
     with tf.Session(config=config) as sess:
         test_handle = sess.run(test_iterator.string_handle())
-        saver.restore(sess, tf.train.latest_checkpoint(logdir))
+        saver.restore(sess, tf.train.latest_checkpoint(log_dir))
         tf.logging.info('Model restored!')
 
         probs = []
