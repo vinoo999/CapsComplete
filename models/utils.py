@@ -7,6 +7,53 @@ from matplotlib import pyplot as plt
 import random
 import imageio
 
+def occlude(arr, occlusion=1, ox_dim=14, oy_dim=14, occ_prob=.7):
+    # Deterministic occlusion
+    if occlusion == 1:
+        occlusion_x_dim = ox_dim
+        occlusion_y_dim = oy_dim
+
+        it_count = 0.0
+        tot = float(len(arr))
+
+        for img_index in range(0, len(arr)):
+            it_count += 1.0
+
+            # Randomize location
+            upper_left_x = random.randint(0,28-occlusion_x_dim)
+            upper_left_y = random.randint(0,28-occlusion_y_dim)
+
+            for i in range(upper_left_x, upper_left_x + occlusion_x_dim):
+                for j in range(upper_left_y, upper_left_y + occlusion_y_dim):
+                    arr[img_index][i][j] = 0
+
+            sys.stdout.write('\r')
+            sys.stdout.write("{}%".format(round(it_count*100.0/tot, 2)))
+            sys.stdout.flush()
+
+    # Probabilistic occlusion
+    elif occlusion == 2:
+        it_count = 0.0
+        tot = float(len(arr))
+
+        for img_index in range(0, len(arr)):
+            it_count += 1.0
+
+            for i in range(0, len(arr[img_index])):
+                for j in range(0, len(arr[img_index][i])):
+                    if random.random() < occ_prob:
+                        arr[img_index][i][j] = 0
+
+            sys.stdout.write('\r')
+            sys.stdout.write("{}%".format(round(it_count*100.0/tot, 2)))
+            sys.stdout.flush()
+
+    imageio.imwrite('sample1.png', arr[0])
+    imageio.imwrite('sample2.png', arr[1])
+    imageio.imwrite('sample3.png', arr[2])
+
+    return arr
+
 def load_mnist(batch_size, is_training=True, quantity=-1, occlusion=-1, ox_dim=14, oy_dim=14, occ_prob=.7, occ_test_train='train'):
     path = os.path.join('data', 'mnist')
     if is_training:
@@ -29,51 +76,11 @@ def load_mnist(batch_size, is_training=True, quantity=-1, occlusion=-1, ox_dim=1
                 # Deterministic occlusion
                 if occlusion == 1:
                     print('Occluding train dataset [deterministic]...')
-                    occlusion_x_dim = ox_dim
-                    occlusion_y_dim = oy_dim
-
-                    it_count = 0.0
-                    tot = float(len(trainX))
-
-                    for img_index in range(0, len(trainX)):
-                        it_count += 1.0
-
-                        # Randomize location
-                        upper_left_x = random.randint(0,28-occlusion_x_dim)
-                        upper_left_y = random.randint(0,28-occlusion_y_dim)
-
-                        for i in range(upper_left_x, upper_left_x + occlusion_x_dim):
-                            for j in range(upper_left_y, upper_left_y + occlusion_y_dim):
-                                trainX[img_index][i][j] = 0
-
-                        sys.stdout.write('\r')
-                        sys.stdout.write("{}%".format(round(it_count*100.0/tot, 2)))
-                        sys.stdout.flush()
-
-                    #imageio.imwrite('sample1.png', trainX[0])
-                    #imageio.imwrite('sample2.png', trainX[1])
-                    #imageio.imwrite('sample3.png', trainX[2])
+                    trainX = occlude(trainX, occlusion=1, ox_dim=14, oy_dim=14)
 
                 elif occlusion == 2:
                     print('Occluding train dataset [probabilistic]...')
-                    it_count = 0.0
-                    tot = float(len(trainX))
-
-                    for img_index in range(0, len(trainX)):
-                        it_count += 1.0
-
-                        for i in range(0, len(trainX[img_index])):
-                            for j in range(0, len(trainX[img_index][i])):
-                                if random.random() < occ_prob:
-                                    trainX[img_index][i][j] = 0
-
-                        sys.stdout.write('\r')
-                        sys.stdout.write("{}%".format(round(it_count*100.0/tot, 2)))
-                        sys.stdout.flush()
-
-                    #imageio.imwrite('sample1.png', trainX[0])
-                    #imageio.imwrite('sample2.png', trainX[1])
-                    #imageio.imwrite('sample3.png', trainX[2])
+                    trainX = occlude(trainX, occlusion=2, occ_prob=.7)
 
         fd = open(os.path.join(path, 'train-labels-idx1-ubyte'))
         loaded = np.fromfile(file=fd, dtype=np.uint8)
@@ -105,51 +112,11 @@ def load_mnist(batch_size, is_training=True, quantity=-1, occlusion=-1, ox_dim=1
             # Deterministic occlusion
             if occlusion == 1:
                 print('Occluding test dataset [deterministic]...')
-                occlusion_x_dim = ox_dim
-                occlusion_y_dim = oy_dim
-
-                it_count = 0.0
-                tot = float(len(teX))
-
-                for img_index in range(0, len(teX)):
-                    it_count += 1.0
-
-                    # Randomize location
-                    upper_left_x = random.randint(0,28-occlusion_x_dim)
-                    upper_left_y = random.randint(0,28-occlusion_y_dim)
-
-                    for i in range(upper_left_x, upper_left_x + occlusion_x_dim):
-                        for j in range(upper_left_y, upper_left_y + occlusion_y_dim):
-                            teX[img_index][i][j] = 0
-
-                    sys.stdout.write('\r')
-                    sys.stdout.write("{}%".format(round(it_count*100.0/tot, 2)))
-                    sys.stdout.flush()
-
-                #imageio.imwrite('sample1.png', testX[0])
-                #imageio.imwrite('sample2.png', testX[1])
-                #imageio.imwrite('sample3.png', testX[2])
+                teX = occlude(teX, occlusion=1, ox_dim=14, oy_dim=14)
 
             elif occlusion == 2:
                 print('Occluding test dataset [probabilistic]...')
-                it_count = 0.0
-                tot = float(len(teX))
-
-                for img_index in range(0, len(teX)):
-                    it_count += 1.0
-
-                    for i in range(0, len(teX[img_index])):
-                        for j in range(0, len(teX[img_index][i])):
-                            if random.random() < occ_prob:
-                                teX[img_index][i][j] = 0
-
-                    sys.stdout.write('\r')
-                    sys.stdout.write("{}%".format(round(it_count*100.0/tot, 2)))
-                    sys.stdout.flush()
-
-                #imageio.imwrite('sample1.png', testX[0])
-                #imageio.imwrite('sample2.png', testX[1])
-                #imageio.imwrite('sample3.png', testX[2])
+                teX = occlude(teX, occlusion=2, occ_prob=.7)
 
         fd = open(os.path.join(path, 't10k-labels-idx1-ubyte'))
         loaded = np.fromfile(file=fd, dtype=np.uint8)
