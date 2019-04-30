@@ -33,20 +33,9 @@ def occlude(arr, occlusion=1, ox_dim=14, oy_dim=14, occ_prob=.7):
 
     # Probabilistic occlusion
     elif occlusion == 2:
-        it_count = 0.0
-        tot = float(len(arr))
-
-        for img_index in range(0, len(arr)):
-            it_count += 1.0
-
-            for i in range(0, len(arr[img_index])):
-                for j in range(0, len(arr[img_index][i])):
-                    if random.random() < occ_prob:
-                        arr[img_index][i][j] = 0
-
-            sys.stdout.write('\r')
-            sys.stdout.write("{}%".format(round(it_count*100.0/tot, 2)))
-            sys.stdout.flush()
+        rands = np.random.random(arr.shape)
+        bools = rands > occ_prob
+        arr = arr * bools
 
     imageio.imwrite('sample1.png', arr[0])
     imageio.imwrite('sample2.png', arr[1])
