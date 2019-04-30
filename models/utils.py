@@ -5,7 +5,7 @@ import tensorflow as tf
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 
-def load_mnist(batch_size, is_training=True, quantity=-1):
+def load_mnist(batch_size, is_training=True, quantity=-1, occlusion=-1):
     path = os.path.join('data', 'mnist')
     if is_training:
         fd = open(os.path.join(path, 'train-images-idx3-ubyte'))
@@ -16,11 +16,40 @@ def load_mnist(batch_size, is_training=True, quantity=-1):
             size = min(60000, abs(quantity))
         origX = loaded[16:].reshape((60000, 28, 28, 1)).astype(np.float32)
         trainX = origX[:size,:,:,:]
+
+        # No occlusion
+        if occlusion == -1:
+            print("No occlusion selected.")
+            pass
+        # Deterministic occlusion
+        elif occlusion == 1:
+            print('Occluding dataset [deterministic]...')
+            occlusion_x_dim = 14
+            occlusion_y_dim = 14
+
+            it_count = 0.0
+            tot = float(len(trainX))
+
+            for img_index in range(0, len(trainX)):
+                it_count += 1.0
+
+                # Randomize location
+                upper_left_x = random.randint(0,28-occlusion_x_dim)
+                upper_left_y = random.randint(0,28-occlusion_y_dim)
+
+                for i in range(upper_left_x, upper_left_x + occlusion_x_dim):
+                    for j in range(upper_left_y, upper_left_y + occlusion_y_dim):
+                        trainX[img_index][i][j] = 0
+
+                sys.stdout.write('\r')
+                sys.stdout.write("{}%".format(round(it_count*100.0/tot, 2)))
+                sys.stdout.flush()
+
         fd = open(os.path.join(path, 'train-labels-idx1-ubyte'))
         loaded = np.fromfile(file=fd, dtype=np.uint8)
         origY = loaded[8:].reshape((60000)).astype(np.int32)
         trainY = origY[:size]
-        
+
         val_boundary = int(0.9*size)
         trX = trainX[:val_boundary] / 255.
         trY = trainY[:val_boundary]
@@ -88,6 +117,10 @@ def load_fashion_mnist(batch_size, is_training=True):
 def load_data(dataset, batch_size, is_training=True, one_hot=False, quantity=-1):
     if dataset == 'mnist':
         return load_mnist(batch_size, is_training, quantity=quantity)
+    elif dataset == 'mnist-deterministic-occlusion':
+        return load_mnist(batch_size, is_training, quantity=quantity, occlusion=1)
+    elif dataset == 'mnist-probabilistic-occlusion':
+        return load_mnist(batch_size, is_training, quantity=quantity, occlusion=2)
     elif dataset == 'fashion-mnist':
         return load_fashion_mnist(batch_size, is_training)
     else:
@@ -188,20 +221,20 @@ def save_to(results_dir, is_training):
         fd_test_acc.write('test_acc\n')
         return fd_test_acc
 
-def train(model, num_label, 
-          dataset='mnist', 
+def train(model, num_label,
+          dataset='mnist',
           batch_size=128, n_epochs=20,
           results_dir='./results/', log_dir='./logs/',
           train_sum_freq=100,
           val_sum_freq=500,
           save_freq=3,
           num_samples=-1):
-    
+
     trX, trY, num_tr_batch, valX, valY, num_val_batch = load_data(dataset, batch_size, is_training=True, quantity=num_samples)
     # Y = valY[:num_val_batch * batch_size].reshape((-1, 1))
 
     fd_train_acc, fd_loss, fd_val_acc = save_to(results_dir, True)
-    
+
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     with tf.Session(config=config, graph=model.graph) as sess:
@@ -250,7 +283,7 @@ def train(model, num_label,
         fd_train_acc.close()
         fd_loss.close()
 
-def evaluation(model, num_label, dataset='mnist', 
+def evaluation(model, num_label, dataset='mnist',
                batch_size=128,
                results_dir='./results/', log_dir='./logs/'):
     teX, teY, num_te_batch = load_data(dataset, batch_size, is_training=False)
@@ -306,13 +339,13 @@ def get_img_gradient(model, num_labels, img_shape, iter=5, model_restore=None):
         train_step = model.X - tf.multiply(grad[0],1)
         for label in range(num_labels):
             print("Label: ", label)
-            for i in range(iter): 
-                input_imgs, probs = sess.run([train_step, model.softmax_v], 
+            for i in range(iter):
+                input_imgs, probs = sess.run([train_step, model.softmax_v],
                                              feed_dict={model.X: input_imgs, model.labels: [label]})
                 if i % 10 == 0:
                     print(probs.flatten()[label])
             plot_imgs(input_imgs)
-            probs, recons = sess.run([model.softmax_v, model.recons], 
+            probs, recons = sess.run([model.softmax_v, model.recons],
                                              feed_dict={model.X: input_imgs, model.labels: [label]})
             print(probs.flatten()[label])
             plot_imgs(recons)
@@ -324,7 +357,7 @@ def get_img_gradient(model, num_labels, img_shape, iter=5, model_restore=None):
                 recon_imgs_on_max = recons
             else:
                 recon_imgs_on_max = np.concatenate((recon_imgs_on_max, recons))
-        
+
         return maximized_imgs, recon_imgs_on_max
 
 
