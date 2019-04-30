@@ -140,7 +140,7 @@ class MyCapsNet(object):
         L_c = T_c * max_l + self.lambda_val * (1 - T_c) * max_r
 
         self.margin_loss = tf.reduce_mean(tf.reduce_sum(L_c, axis=1))
-
+        self.classification_loss = tf.loss.softmax_cross_entropy(self.Y, self.v_length)
         # 2. The reconstruction loss
         dim = tf.reduce_prod(tf.shape(self.X)[1:])
         orgin = tf.reshape(self.X, shape=(-1, dim))
