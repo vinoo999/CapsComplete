@@ -3,6 +3,7 @@ import scipy
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
+from matplotlib import pyplot as plt
 
 def load_mnist(batch_size, is_training=True, quantity=-1):
     path = os.path.join('data', 'mnist')
@@ -291,3 +292,50 @@ def get_batch(X, Y, batch_size, batch_num):
     X_batch = X[np.arange(new_start, new_end), ...]
     Y_batch = Y[np.arange(new_start, new_end)]
     return X_batch, Y_batch, batch_num
+
+
+def get_img_gradient(model, num_labels, img_shape, iter=5, model_restore=None):
+    config = tf.ConfigProto(allow_soft_placement=True)
+    config.gpu_options.allow_growth = True
+    maximized_imgs = None
+    recon_imgs_on_max = None
+    with tf.Session(config=config, graph=model.graph) as sess:
+        saver = tf.train.Saver()
+        saver.restore(sess, model_restore)
+        grad = tf.gradients(model.classification_loss, [model.X])
+        train_step = model.X - tf.multiply(grad[0],1)
+        for label in range(num_labels):
+            print("Label: ", label)
+            for i in range(iter): 
+                input_imgs, probs = sess.run([train_step, model.softmax_v], 
+                                             feed_dict={model.X: input_imgs, model.labels: [label]})
+                if i % 10 == 0:
+                    print(probs.flatten()[label])
+            plot_imgs(input_imgs)
+            probs, recons = sess.run([model.softmax_v, model.recons], 
+                                             feed_dict={model.X: input_imgs, model.labels: [label]})
+            print(probs.flatten()[label])
+            plot_imgs(recons)
+            if maximized_imgs is None:
+                maximized_imgs = input_imgs
+            else:
+                maximized_imgs = np.concatenate((maximized_imgs, input_imgs))
+            if recon_imgs_on_max is None:
+                recon_imgs_on_max = recons
+            else:
+                recon_imgs_on_max = np.concatenate((recon_imgs_on_max, recons))
+        
+        return maximized_imgs, recon_imgs_on_max
+
+
+def plot_imgs(imgs, cols=1):
+    fig = plt.figure()
+    n_images = imgs.shape[0]
+    for n, image in enumerate(imgs):
+        a = fig.add_subplot(cols, np.ceil(n_images/float(cols)), n + 1)
+        image = image.reshape((28,28))
+        if image.ndim == 2:
+            plt.gray()
+        plt.imshow(image)
+    fig.set_size_inches(np.array(fig.get_size_inches()))
+    plt.show()
