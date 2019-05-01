@@ -39,13 +39,13 @@ def train(model, num_label,
                 global_step = epoch * num_tr_batch + step
                 X_batch, Y_batch, batch_num = get_batch(trX, trY, batch_size, batch_num)
                 if global_step % train_sum_freq == 0:
-                    _, loss, train_acc, summary_str = sess.run([model.train_op, model.total_loss, model.accuracy, model.train_summary], feed_dict={model.inputs: X_batch, model.labels: Y_batch})
+                    _, loss, train_correct, summary_str = sess.run([model.train_op, model.total_loss, model.correct, model.train_summary], feed_dict={model.inputs: X_batch, model.labels: Y_batch})
                     assert not np.isnan(loss), 'Something wrong! loss is nan...'
                     summary_writer.add_summary(summary_str, global_step)
 
                     fd_loss.write(str(global_step) + ',' + str(loss) + "\n")
                     fd_loss.flush()
-                    fd_train_acc.write(str(global_step) + ',' + str(train_acc / batch_size) + "\n")
+                    fd_train_acc.write(str(global_step) + ',' + str(train_correct / batch_size) + "\n")
                     fd_train_acc.flush()
                 else:
                     sess.run(model.train_op, feed_dict={model.inputs: X_batch, model.labels: Y_batch})
@@ -55,8 +55,8 @@ def train(model, num_label,
                     for i in range(num_val_batch):
                         start = i * batch_size
                         end = start + batch_size
-                        acc = sess.run(model.accuracy, {model.inputs: valX[start:end], model.labels: valY[start:end]})
-                        val_acc += acc
+                        val_correct = sess.run(model.accuracy, {model.inputs: valX[start:end], model.labels: valY[start:end]})
+                        val_acc += val_correct
                     val_acc = val_acc / (batch_size * num_val_batch)
                     fd_val_acc.write(str(global_step) + ',' + str(val_acc) + '\n')
                     fd_val_acc.flush()
@@ -90,12 +90,12 @@ def evaluation(model, num_label, dataset='mnist',
         for i in tqdm(range(num_te_batch), total=num_te_batch, ncols=70, leave=False, unit='b'):
             start = i * batch_size
             end = start + batch_size
-            acc, recons = sess.run([model.accuracy, model.recons], {model.inputs: teX[start:end], model.labels: teY[start:end]})
-            test_acc += acc
+            correct, recons = sess.run([model.correct, model.recons], {model.inputs: teX[start:end], model.labels: teY[start:end]})
+            test_acc += correct
             recon_error += np.sum(np.sqrt(np.sum((teX[start:end] - recons) ** 2, axis=(1,2,3) )))
 
         test_acc = test_acc / (batch_size * num_te_batch)
-        recon_erorr = recon_error / (batch_size * num_te_batch)
+        recon_error = recon_error / (batch_size * num_te_batch)
         fd_test_acc.write(str(test_acc) + ',' + str(recon_error))
         fd_test_acc.close()
         print('Test accuracy has been saved to ' + results_dir + '/test_acc.csv')

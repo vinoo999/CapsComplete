@@ -50,7 +50,7 @@ class AutoEncoder(object):
 
         self.logits = tf.keras.layers.Dense(self.num_label, name='classification_layer')(fc2)
         self.probs = tf.nn.softmax(self.logits, axis=1)
-        self.predictions = tf.to_int32(tf.argmax(self.probs, axis=1))
+        self.predictions = tf.cast(tf.argmax(self.probs, axis=1), tf.int32)
         with tf.variable_scope("decoder"):
             fc3 = tf.keras.layers.Dense(256, activation='relu', name='fc3')(fc2)
             fc3 = tf.keras.layers.Dropout(0.2)(fc3)
@@ -64,18 +64,15 @@ class AutoEncoder(object):
             self.recons = tf.reshape(recon, shape=[-1, self.height, self.width, self.channels], name='reconstruction') 
         
         with tf.variable_scope('accuracy'):
-            logits_idx = tf.to_int32(tf.argmax(tf.nn.softmax(self.logits, axis=1), axis=1))
-            correct_prediction = tf.equal(tf.to_int32(self.labels), logits_idx)
-            correct = tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
-            self.accuracy = tf.reduce_mean(correct / tf.cast(tf.shape(self.logits)[0], tf.float32))
-            tf.summary.scalar('accuracy', self.accuracy)
+            correct_prediction = tf.equal(tf.cast(self.labels, tf.int32), self.predictions)
+            self.correct = tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
     
     def train(self, *args, **kwargs):
         self._build_loss()
         self._setup_train()
-        return (self.total_loss, self.train_op, self.summary_ops)
+        return (self.total_loss, self.train_op, self.train_summary)
     
-    def _build_loss(self, reg=0.392):
+    def _build_loss(self, reg=0.0005):
         with tf.variable_scope("loss"):
             self.reconstruction_loss = tf.nn.l2_loss(self.recons - self.inputs, name='reconstruction_loss')
             one_hot = tf.one_hot(self.labels, depth=self.num_label)

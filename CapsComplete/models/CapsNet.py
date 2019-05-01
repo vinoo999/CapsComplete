@@ -56,7 +56,7 @@ class CapsNet(object):
                 self.build_arch()
                 self.loss()
                 correct_prediction = tf.equal(tf.to_int32(self.labels), self.predictions)
-                self.accuracy = tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
+                self.correct = tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
 
         tf.logging.info('Seting up the main structure')
 
@@ -111,8 +111,7 @@ class CapsNet(object):
             vector_j = self.masked_v[:,:,0]
             fc1 = tf.keras.layers.Dense(512, activation='relu')(vector_j)
             fc2 = tf.keras.layers.Dense(1024, activation='relu')(fc1)
-            self.decoded = tf.keras.layers.Dense(self.height * self.width * self.channels,
-                                                             activation=tf.sigmoid)(fc2)
+            self.decoded = tf.keras.layers.Dense(self.height * self.width * self.channels, activation=tf.sigmoid)(fc2)
             self.recons = tf.reshape(self.decoded, (-1, self.height, self.width, self.channels))
 
     def loss(self):
@@ -130,8 +129,7 @@ class CapsNet(object):
         max_r = tf.reshape(max_r, shape=(-1, self.num_label))
 
         # calc T_c: [batch_size, 10]
-        # T_c = Y, is my understanding correct? Try it.
-        T_c = self.Y
+        T_c = self.Y # Onehot
         # [batch_size, 10], element-wise multiply
         L_c = T_c * max_l + self.lambda_val * (1 - T_c) * max_r
 
@@ -162,4 +160,4 @@ class CapsNet(object):
         self.train_summary = tf.summary.merge(train_summary)
 
         correct_prediction = tf.equal(tf.to_int32(self.labels), self.predictions)
-        self.accuracy = tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
+        self.correct = tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
