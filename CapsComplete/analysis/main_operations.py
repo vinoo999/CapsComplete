@@ -55,7 +55,7 @@ def train(model, num_label,
                     for i in range(num_val_batch):
                         start = i * batch_size
                         end = start + batch_size
-                        val_correct = sess.run(model.accuracy, {model.inputs: valX[start:end], model.labels: valY[start:end]})
+                        val_correct = sess.run(model.correct, {model.inputs: valX[start:end], model.labels: valY[start:end]})
                         val_acc += val_correct
                     val_acc = val_acc / (batch_size * num_val_batch)
                     fd_val_acc.write(str(global_step) + ',' + str(val_acc) + '\n')
