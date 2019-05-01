@@ -71,14 +71,15 @@ def load_fashion_mnist(batch_size, is_training=True, quantity=-1, path='./data/f
         origY = loaded[8:].reshape((60000)).astype(np.int32)
         trainY = origY[:size]
 
-        trX = trainX[:55000] / 255.
-        trY = trainY[:55000]
+        val_boundary = int(0.9*size)
+        trX = trainX[:val_boundary] / 255.
+        trY = trainY[:val_boundary]
 
-        valX = trainX[55000:, ] / 255.
-        valY = trainY[55000:]
+        valX = trainX[val_boundary:, ] / 255.
+        valY = trainY[val_boundary:]
 
-        num_tr_batch = 55000 // batch_size
-        num_val_batch = 5000 // batch_size
+        num_tr_batch = val_boundary // batch_size
+        num_val_batch = (size-val_boundary) // batch_size
 
         return trX, trY, num_tr_batch, valX, valY, num_val_batch
     else:
